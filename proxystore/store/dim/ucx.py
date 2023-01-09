@@ -347,7 +347,7 @@ def launch_server(host: str, port: int) -> None:
     # CI occasionally timeouts when starting this server in the
     # store_implementation session fixture. It seems to not happen when
     # debug=True, but this is just a temporary fix.
-    asyncio.run(ps.run(), debug=True)
+    asyncio.run(ps.run())
 
     logger.info(f'server running at address {host}:{port}')
 
