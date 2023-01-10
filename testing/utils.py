@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import socket
 
+used_ports = []
 
 def open_port() -> int:
     """Return open port.
@@ -14,4 +15,10 @@ def open_port() -> int:
     s.listen(1)
     port = s.getsockname()[1]
     s.close()
+    
+    if port in used_port:
+        print("port already in use")
+        port = open_port()
+    else:
+        used_ports.append(port)
     return port
