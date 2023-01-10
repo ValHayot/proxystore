@@ -255,7 +255,7 @@ def websocket_store() -> Generator[StoreInfo, None, None]:
     )
 
 
-@pytest.fixture(scope='session', params=FIXTURE_LIST)
+@pytest.fixture(params=FIXTURE_LIST)
 def store_implementation(
     request,
 ) -> Generator[StoreFixtureType, None, None]:
