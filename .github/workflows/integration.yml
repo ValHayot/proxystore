@@ -34,4 +34,4 @@ jobs:
           registry: ghcr.io
           image: ghcr.io/proxystore/proxystore-dim:nightly
           options: -v ${{ github.workspace }}:/proxystore --network host --workdir /proxystore
-          run: tox -e ${{ matrix.toxenv }} -- -k "not store_stats_test and [ucx_store]"
+          run: tox -e ${{ matrix.toxenv }} -- -k "[ucx_store]" tests/store/store_basics_test.py tests/store/store_proxy_test.py
