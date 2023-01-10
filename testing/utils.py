@@ -5,7 +5,7 @@ import socket
 
 used_ports = []
 
-def open_port() -> int:
+def open_port() -> int: # pragma: no cover
     """Return open port.
 
     Source: https://stackoverflow.com/questions/2838244
