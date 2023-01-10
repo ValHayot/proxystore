@@ -195,10 +195,9 @@ def endpoint_store(
     )
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def ucx_store() -> Generator[StoreInfo, None, None]:
     """UCX Store fixture."""
-    port = open_port()
     port = open_port()
 
     ctx: Callable[[], ContextManager[None]] = contextlib.nullcontext
