@@ -13,3 +13,5 @@ def open_port() -> int: # pragma: no cover
     s.listen(1)
     port = s.getsockname()[1]
     s.close()
+    
+    return port
