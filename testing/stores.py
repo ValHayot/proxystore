@@ -199,6 +199,7 @@ def endpoint_store(
 def ucx_store() -> Generator[StoreInfo, None, None]:
     """UCX Store fixture."""
     port = open_port()
+    port = open_port()
 
     ctx: Callable[[], ContextManager[None]] = contextlib.nullcontext
     ucp_spec = importlib.util.find_spec('ucp')
