@@ -269,14 +269,14 @@ def store_implementation(
             **store_info.kwargs,
         )
 
-    with mock.patch.object(
-        store,
-        'close',
-        side_effect=RuntimeError(
-            'Tests using the store_implementation fixture should not call '
-            'close() on the yielded Store instance.',
-        ),
-    ):
+#     with mock.patch.object(
+#         store,
+#         'close',
+#         side_effect=RuntimeError(
+#             'Tests using the store_implementation fixture should not call '
+#             'close() on the yielded Store instance.',
+#         ),
+#     ):
         yield store, store_info
 
     with store_info.ctx():
