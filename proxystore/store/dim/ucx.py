@@ -166,7 +166,7 @@ class UCXStore(Store[UCXStoreKey]):
         host = addr.split(':')[0]  # quick fix
         port = int(addr.split(':')[1])
 
-        ep = await ucp.create_endpoint(host, port)
+        ep = await ucp.create_endpoint(host, port, endpoint_error_handling=False)
 
         await ep.send_obj(event)
 
@@ -437,12 +437,15 @@ async def wait_for_server(host: str, port: int, timeout: float = 5.0) -> None:
         timeout (float): max time in seconds to wait for server response
             (default: 5.0).
     """
+    global server_process
+    
     sleep_time = 0.01
     time_waited = 0.0
 
     while True:
+        logger.error(f"Server process {server_process.is_alive()}")
         try:
-            ep = await ucp.create_endpoint(host, port)
+            ep = await ucp.create_endpoint(host, port, endpoint_error_handling=False)
         except ucp._libs.exceptions.UCXNotConnected:  # pragma: no cover
             if time_waited >= timeout:
                 raise RuntimeError(
