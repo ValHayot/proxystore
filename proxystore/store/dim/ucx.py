@@ -24,6 +24,7 @@ from proxystore.store.base import Store
 from proxystore.store.dim.utils import get_ip_address
 from proxystore.store.dim.utils import Status
 
+from time import sleep
 
 ENCODING = 'UTF-8'
 
@@ -312,6 +313,7 @@ class UCXServer:
         
         try:
             logger.error("Listener has started")
+            sleep(1)
             self.ucp_listener = ucp.create_listener(self.handler, self.port)
         except:
             logger.error("Listener could not be started")
