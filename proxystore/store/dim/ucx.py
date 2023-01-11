@@ -313,7 +313,6 @@ class UCXServer:
         
         try:
             logger.error("Listener has started")
-            sleep(1)
             self.ucp_listener = ucp.create_listener(self.handler, self.port)
         except:
             logger.error("Listener could not be started")
@@ -445,6 +444,7 @@ async def wait_for_server(host: str, port: int, timeout: float = 5.0) -> None:
     sleep_time = 0.01
     time_waited = 0.0
 
+    asyncio.sleep(1)
     while True:
         logger.error(f"Server process {server_process.is_alive()}")
         try:
