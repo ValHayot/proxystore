@@ -166,7 +166,7 @@ class UCXStore(Store[UCXStoreKey]):
         host = addr.split(':')[0]  # quick fix
         port = int(addr.split(':')[1])
 
-        ep = await ucp.create_endpoint(host, port, endpoint_error_handling=False)
+        ep = await ucp.create_endpoint(host, port)
 
         await ep.send_obj(event)
 
@@ -311,7 +311,7 @@ class UCXServer:
         """
         
         try:
-            self.ucp_listener = ucp.create_listener(self.handler, self.port, endpoint_error_handling=False)
+            self.ucp_listener = ucp.create_listener(self.handler, self.port)
         except:
             logger.error("Listener could not be started")
 
@@ -445,7 +445,7 @@ async def wait_for_server(host: str, port: int, timeout: float = 5.0) -> None:
     while True:
         logger.error(f"Server process {server_process.is_alive()}")
         try:
-            ep = await ucp.create_endpoint(host, port, endpoint_error_handling=False)
+            ep = await ucp.create_endpoint(host, port)
         except ucp._libs.exceptions.UCXNotConnected:  # pragma: no cover
             if time_waited >= timeout:
                 raise RuntimeError(
