@@ -311,8 +311,8 @@ class UCXServer:
         """
         
         try:
-            self.ucp_listener = ucp.create_listener(self.handler, self.port)
             logger.error("Listener has started")
+            self.ucp_listener = ucp.create_listener(self.handler, self.port)
         except:
             logger.error("Listener could not be started")
         
