@@ -445,7 +445,8 @@ async def wait_for_server(host: str, port: int, timeout: float = 5.0) -> None:
     time_waited = 0.0
 
     asyncio.sleep(1)
-    while True:
+    count = 0
+    while count < 3:
         logger.error(f"Server process {server_process.is_alive()}")
         try:
             ep = await ucp.create_endpoint(host, port)
@@ -459,6 +460,7 @@ async def wait_for_server(host: str, port: int, timeout: float = 5.0) -> None:
             time_waited += sleep_time
         else:
             break  # pragma: no cover
+        count += 1
 
     await ep.send_obj(bytes(1))
     _ = await ep.recv_obj()
