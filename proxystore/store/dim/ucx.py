@@ -309,7 +309,11 @@ class UCXServer:
         Creates a listener for the handler method and waits on SIGINT/TERM
         events to exit. Also handles cleaning up UCP objects.
         """
-        self.ucp_listener = ucp.create_listener(self.handler, self.port)
+        
+        try:
+            self.ucp_listener = ucp.create_listener(self.handler, self.port)
+        except:
+            logger.error("Listener could not be started")
 
         # Set the stop condition when receiving SIGINT (ctrl-C) and SIGTERM.
         loop = asyncio.get_running_loop()
