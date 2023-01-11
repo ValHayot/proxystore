@@ -312,9 +312,10 @@ class UCXServer:
         
         try:
             self.ucp_listener = ucp.create_listener(self.handler, self.port)
+            logger.error("Listener has started")
         except:
             logger.error("Listener could not be started")
-
+        
         # Set the stop condition when receiving SIGINT (ctrl-C) and SIGTERM.
         loop = asyncio.get_running_loop()
         stop = loop.create_future()
