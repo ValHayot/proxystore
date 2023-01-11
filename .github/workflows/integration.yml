@@ -40,4 +40,4 @@ jobs:
             python3.9 -m pip install .[endpoints]
             python3.9 -m pip install git+https://github.com/rapidsai/ucx-py.git
             python3.9 -m pip install pytest
-            python3.9 -m pytest -k "[ucx_store]" -s --log-cli-level=debug tests/store/store_basics_test.py tests/store/store_proxy_test.py
+            python3.9 -m pytest -k "[ucx_store]" -s tests/store/store_basics_test.py tests/store/store_proxy_test.py
