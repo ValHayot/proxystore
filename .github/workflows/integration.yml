@@ -35,7 +35,7 @@ jobs:
           image: ghcr.io/proxystore/proxystore-dim:nightly
           options: -v ${{ github.workspace }}:/proxystore --network host --workdir /proxystore
           run: |
-            pip install -r requirements_dev.txt
+            pip install -r requirements-dev.txt
             pip install .
             pip install .[endpoints]
             pip install git+https://github.com/rapidsai/ucx-py.git
