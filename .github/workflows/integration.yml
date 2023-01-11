@@ -35,9 +35,9 @@ jobs:
           image: ghcr.io/proxystore/proxystore-dim:nightly
           options: -v ${{ github.workspace }}:/proxystore --network host --workdir /proxystore
           run: |
-            pip install -r requirements-dev.txt
-            pip install .
-            pip install .[endpoints]
-            pip install git+https://github.com/rapidsai/ucx-py.git
-            pip install pytest
-            UCX_LOG_LEVEL=debug pytest -k "[ucx_store]" -s tests/store/store_basics_test.py tests/store/store_proxy_test.py
+            python3.9 -m pip install -r requirements-dev.txt
+            python3.9 -m pip install .
+            python3.9 -m pip install .[endpoints]
+            python3.9 -m pip install git+https://github.com/rapidsai/ucx-py.git
+            python3.9 -m pip install pytest
+            UCX_LOG_LEVEL=debug python3.9 -m pytest -k "[ucx_store]" -s tests/store/store_basics_test.py tests/store/store_proxy_test.py
