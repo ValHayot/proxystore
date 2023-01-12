@@ -193,11 +193,11 @@ async def wait_for_server(host: str, port: int, timeout: float = 5.0) -> None:
 if __name__ == "__main__":
     p = Process(target=server_start)
     p.start()
-
-    wait_for_server(host=host, port=port)
     
     try:
         _loop = asyncio.get_running_loop()
     except RuntimeError:
         _loop = asyncio.new_event_loop()
+        
+    _loop.run_until_complete(wait_for_server(host=host, port=port))
     _loop.run_until_complete(client_main(p))
