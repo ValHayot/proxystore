@@ -197,10 +197,10 @@ def test_ucx():
     p = Process(target=server_start)
     p.start()
     
-    try:
-        _loop = asyncio.get_running_loop()
-    except RuntimeError:
-        _loop = asyncio.new_event_loop()
+    # try:
+    #     _loop = asyncio.get_running_loop()
+    # except RuntimeError:
+    #     _loop = asyncio.new_event_loop()
         
-    _loop.run_until_complete(wait_for_server(host=host, port=port))
-    _loop.run_until_complete(client_main(p))
+    asyncio.run(wait_for_server(host=host, port=port))
+    asyncio.run(client_main(p))
