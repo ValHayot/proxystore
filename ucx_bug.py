@@ -185,9 +185,9 @@ async def wait_for_server(host: str, port: int, timeout: float = 5.0) -> None:
             break  # pragma: no cover
 
     msg = np.zeros(n_bytes, dtype='u1')            
-    await ep.send_obj(msg)
+    await ep.send(msg)
     resp = np.empty_like(msg)
-    _ = await ep.recv_obj(resp)
+    _ = await ep.recv(resp)
     await ep.close()
     assert ep.closed()
 
