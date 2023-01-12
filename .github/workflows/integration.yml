@@ -38,6 +38,6 @@ jobs:
             # python3.9 -m pip install -r requirements-dev.txt
             # python3.9 -m pip install .
             # python3.9 -m pip install .[endpoints]
-            # python3.9 -m pip install git+https://github.com/rapidsai/ucx-py.git
             # python3.9 -m pip install pytest
+            python3.9 -m pip install git+https://github.com/rapidsai/ucx-py.git
             python3.9 ucx_bug.py
