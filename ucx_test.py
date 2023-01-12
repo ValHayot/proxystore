@@ -191,8 +191,9 @@ async def wait_for_server(host: str, port: int, timeout: float = 5.0) -> None:
     await ep.close()
     assert ep.closed()
 
-
-if __name__ == "__main__":
+def test_ucx():
+    global host
+    global port
     p = Process(target=server_start)
     p.start()
     
