@@ -191,9 +191,6 @@ async def wait_for_server(host: str, port: int, timeout: float = 5.0) -> None:
 
 
 if __name__ == "__main__":
-    global host
-    global port
-    
     p = Process(target=server_start)
     p.start()
 
