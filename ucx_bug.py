@@ -157,12 +157,48 @@ async def client_main(proc):
     await ep.close()
     assert ep.closed()
     proc.terminate()
+    
+async def wait_for_server(host: str, port: int, timeout: float = 5.0) -> None:
+    """Wait until the UCXServer responds.
+
+    Args:
+        host (str): host of UCXServer to ping.
+        port (int): port of UCXServer to ping.
+        timeout (float): max time in seconds to wait for server response
+            (default: 5.0).
+    """
+    sleep_time = 0.01
+    time_waited = 0.0
+
+    while True:
+        try:
+            ep = await ucp.create_endpoint(host, port)
+        except ucp._libs.exceptions.UCXNotConnected:  # pragma: no cover
+            if time_waited >= timeout:
+                raise RuntimeError(
+                    'Failed to connect to server within timeout '
+                    f'({timeout} seconds).',
+                )
+            await asyncio.sleep(sleep_time)
+            time_waited += sleep_time
+        else:
+            break  # pragma: no cover
+
+    await ep.send_obj(bytes(1))
+    _ = await ep.recv_obj()
+    await ep.close()
+    assert ep.closed()
+
 
 if __name__ == "__main__":
-
+    global host
+    global port
+    
     p = Process(target=server_start)
     p.start()
-    sleep(5)
+
+    wait_for_server(host=host, port=port)
+    
     try:
         _loop = asyncio.get_running_loop()
     except RuntimeError:
