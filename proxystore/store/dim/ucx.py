@@ -273,9 +273,10 @@ class UCXServer:
 
         """
         json_kv = await ep.recv_obj()
-
+        logger.error(f"is waiting for server response {json_kv == bytes(1)}")
         if json_kv == bytes(1):
             await ep.send_obj(bytes(1))
+            logger.error("waiting for server object sent")
             return
 
         kv = deserialize(bytes(json_kv))
