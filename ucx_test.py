@@ -44,6 +44,9 @@ async def server_main():
 
     # Set the stop condition when receiving SIGINT (ctrl-C) and SIGTERM.
     
+    signal.signal(signal.SIGINT, close, None)
+    signal.signal(signal.SIGTERM, close, None)
+    
     while not lf.closed():
         asyncio.sleep(0.1)
     #loop = asyncio.get_running_loop()
