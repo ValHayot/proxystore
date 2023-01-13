@@ -43,20 +43,21 @@ async def server_main():
     lf = ucp.create_listener(send, port)
 
     # Set the stop condition when receiving SIGINT (ctrl-C) and SIGTERM.
-    
-    signal.signal(signal.SIGINT, close)
-    signal.signal(signal.SIGTERM, close)
-    
-    while not lf.closed():
-        asyncio.sleep(0.1)
-    #loop = asyncio.get_running_loop()
-    #stop = loop.create_future()
-    #loop.add_signal_handler(signal.SIGINT, stop.set_result, None)
-    #loop.add_signal_handler(signal.SIGTERM, stop.set_result, None)
+    loop = asyncio.get_running_loop()
+    stop = loop.create_future()
+    loop.add_signal_handler(signal.SIGINT, stop.set_result, None)
+    loop.add_signal_handler(signal.SIGTERM, stop.set_result, None)
 
-    #await stop
-    #close()
-    #await reset_ucp_async()
+    await stop
+    close()
+    await reset_ucp_async()
+    
+    # signal.signal(signal.SIGINT, close)
+    # signal.signal(signal.SIGTERM, close)
+    
+    # while not lf.closed():
+        # asyncio.sleep(0.1)
+
 
 def reset_ucp() -> None:  # pragma: no cover
     """Hard reset all of UCP.
