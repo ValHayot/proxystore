@@ -66,6 +66,10 @@ jobs:
             python -m pip install git+https://github.com/rapidsai/ucx-py.git
             # python3.9 -m pytest -k "[ucx_store]" --log-cli-level debug tests/store/store_basics_test.py
             python -m pytest ucx_test.py
+            
+      - name: Setup tmate session
+        if: ${{ failure() }}
+        uses: mxschmitt/action-tmate@v3
 #         uses: addnab/docker-run-action@v3
 #         with:
 #           username: ${{ github.actor }}
