@@ -45,8 +45,8 @@ async def server_main():
     # Set the stop condition when receiving SIGINT (ctrl-C) and SIGTERM.
     loop = asyncio.get_running_loop()
     stop = loop.create_future()
-    loop.add_signal_handler(signal.SIGINT, stop.set_result, None)
-    loop.add_signal_handler(signal.SIGTERM, stop.set_result, None)
+    #loop.add_signal_handler(signal.SIGINT, stop.set_result, None)
+    #loop.add_signal_handler(signal.SIGTERM, stop.set_result, None)
 
     await stop
     #close()
