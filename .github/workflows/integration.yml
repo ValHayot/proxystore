@@ -53,9 +53,9 @@ jobs:
           ./autogen.sh
           mkdir build
           cd build
-          ../configure
-          make -j4
-          make install
+          sudo ../configure
+          sudo make -j4
+          sudo make install
 
       - name: run tests
         run: |
