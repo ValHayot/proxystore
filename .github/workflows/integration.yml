@@ -9,7 +9,7 @@ on:
 
 jobs:
   dim:
-    timeout-minutes: 10
+    timeout-minutes: 40
 
     strategy:
       matrix:
