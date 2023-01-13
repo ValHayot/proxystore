@@ -25,20 +25,52 @@ jobs:
       - name: Checkout v2
         # Required to mount the Github Workspace to a volume
         uses: actions/checkout@v2
-
-      - name: Pull image and run tests
-        uses: addnab/docker-run-action@v3
+        
+      - uses: actions/setup-python@v4
         with:
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          registry: ghcr.io
-          image: ghcr.io/proxystore/proxystore-dim:nightly
-          options: -v ${{ github.workspace }}:/proxystore --network host --workdir /proxystore
-          run: |
-            python3.9 -m pip install -r requirements-dev.txt
-            python3.9 -m pip install .
-            python3.9 -m pip install .[endpoints]
-            python3.9 -m pip install pytest
-            python3.9 -m pip install git+https://github.com/rapidsai/ucx-py.git
+          python-version: '3.9' 
+          
+      - name: Update system and install necessary packages
+        run: |
+          apt update -y
+          apt install -y make gcc g++ cmake git build-essential autoconf libtool make libssl-dev zlib1g-dev \
+            libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev pkg-config \
+            libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev python3-openssl libjson-c5 libjson-c-dev \
+            uuid numactl libnuma-dev libudev-dev libnl-3-dev libnl-route-3-dev ninja-build valgrind python3-dev \
+            cython3 python3-docutils pandoc
+            
+      - name: Install rdma-core
+        run: |
+          git clone https://github.com/linux-rdma/rdma-core
+          cd rdma-core
+          git checkout v41.0
+          bash build.sh
+          
+      - name: Install UCX
+        run: |
+          git clone https://github.com/openucx/ucx.git ucx
+          cd ucx
+          ./autogen.sh
+          mkdir build
+          cd build
+          ../configure
+          make -j4
+          make install
+
+      - name: run tests
+        run: |
+            python -m pip install -r requirements-dev.txt
+            python -m pip install .
+            python -m pip install .[endpoints]
+            python -m pip install pytest
+            python -m pip install git+https://github.com/rapidsai/ucx-py.git
             # python3.9 -m pytest -k "[ucx_store]" --log-cli-level debug tests/store/store_basics_test.py
-            python3.9 -m pytest ucx_test.py
+            python -m pytest ucx_test.py
+#         uses: addnab/docker-run-action@v3
+#         with:
+#           username: ${{ github.actor }}
+#           password: ${{ secrets.GITHUB_TOKEN }}
+#           registry: ghcr.io
+#           image: ghcr.io/proxystore/proxystore-dim:nightly
+#           options: -v ${{ github.workspace }}:/proxystore --network host --workdir /proxystore
+
