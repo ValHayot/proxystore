@@ -32,8 +32,8 @@ jobs:
           
       - name: Update system and install necessary packages
         run: |
-          apt update -y
-          apt install -y make gcc g++ cmake git build-essential autoconf libtool make libssl-dev zlib1g-dev \
+          sudo apt update -y
+          sudo apt install -y make gcc g++ cmake git build-essential autoconf libtool make libssl-dev zlib1g-dev \
             libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev pkg-config \
             libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev python3-openssl libjson-c5 libjson-c-dev \
             uuid numactl libnuma-dev libudev-dev libnl-3-dev libnl-route-3-dev ninja-build valgrind python3-dev \
