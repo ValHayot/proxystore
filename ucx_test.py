@@ -49,8 +49,8 @@ async def server_main():
     loop.add_signal_handler(signal.SIGTERM, stop.set_result, None)
 
     await stop
-    close()
-    await reset_ucp_async()
+    #close()
+    #await reset_ucp_async()
 
 def reset_ucp() -> None:  # pragma: no cover
     """Hard reset all of UCP.
