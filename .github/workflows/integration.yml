@@ -68,8 +68,8 @@ jobs:
             python -m pip install .[endpoints]
             python -m pip install pytest
             python -m pip install git+https://github.com/rapidsai/ucx-py.git
-            # python3.9 -m pytest -k "[ucx_store]" --log-cli-level debug tests/store/store_basics_test.py
-            python -m pytest ucx_test.py
+            python -m pytest -k "[ucx_store]" --log-cli-level debug tests/store/store_basics_test.py
+            #python -m pytest ucx_test.py
             
 
 #         uses: addnab/docker-run-action@v3
