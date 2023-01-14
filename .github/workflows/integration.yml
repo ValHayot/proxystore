@@ -9,7 +9,7 @@ on:
 
 jobs:
   dim:
-    timeout-minutes: 10
+    timeout-minutes: 30
 
     strategy:
       matrix:
@@ -59,6 +59,7 @@ jobs:
           
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 20
 
       - name: run tests
         run: |
