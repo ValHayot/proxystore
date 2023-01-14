@@ -49,6 +49,7 @@ class UCXStore(Store[UCXStoreKey]):
     addr: str
     host: str
     port: int
+    connections: dict[str, ucp.Endpoint] | None
     server: Process
     _loop: asyncio.events.AbstractEventLoop
 
@@ -59,6 +60,7 @@ class UCXStore(Store[UCXStoreKey]):
         *,
         interface: str,
         port: int,
+        persist_connections: bool = True,
         cache_size: int = 16,
         stats: bool = False,
     ) -> None:
@@ -71,6 +73,8 @@ class UCXStore(Store[UCXStoreKey]):
             name (str): name of the store instance.
             interface (str): The network interface to use
             port (int): the desired port for the UCX server
+            persist_connections (bool): Should endpoint connections 
+                be persisted across peers (default: True)
             cache_size (int): size of LRU cache (in # of objects). If 0,
                 the cache is disabled. The cache is local to the Python
                 process (default: 16).
@@ -103,6 +107,9 @@ class UCXStore(Store[UCXStoreKey]):
                 wait_for_server(self.host, self.port),
             )
 
+        if persist_connections:
+            self.connections = {}
+            
         # TODO: Verify if create_endpoint error handling will successfully
         # connect to endpoint or if error handling needs to be done here
 
@@ -164,24 +171,36 @@ class UCXStore(Store[UCXStoreKey]):
         self._loop.run_until_complete(self.handler(event, self.addr))
 
     async def handler(self, event: bytes, addr: str) -> bytes:
-        host = addr.split(':')[0]  # quick fix
-        port = int(addr.split(':')[1])
+        if self.connections is None or addr not in self.connections:
+            host = addr.split(':')[0]  # quick fix
+            port = int(addr.split(':')[1])
+            ep = await ucp.create_endpoint(host, port)
 
-        ep = await ucp.create_endpoint(host, port)
+            if self.connections is not None:
+                self.connections[addr] = ep
+        else:
+            ep = self.connections[addr]
 
         await ep.send_obj(event)
 
         res = await ep.recv_obj()
 
-        await ep.close()
+        if self.connections is None:
+            await ep.close()
 
         return bytes(res)  # returns bytearray by default
+    
+    async def close_endpoints(self):
+        for ep in self.connections.values():
+            await ep.close()
 
     def close(self) -> None:
         """Terminate Peer server process."""
         global server_process
 
         logger.info('Clean up requested')
+        
+        self._loop.run_until_complete(self.close_endpoints())
 
         if server_process is not None:
             server_process.terminate()
@@ -445,7 +464,6 @@ async def wait_for_server(host: str, port: int, timeout: float = 5.0) -> None:
     sleep_time = 0.01
     time_waited = 0.0
 
-    asyncio.sleep(1)
     count = 0
     while count < 3:
         logger.error(f"Server process {server_process.is_alive()}")
