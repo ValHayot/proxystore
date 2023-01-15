@@ -193,6 +193,7 @@ class UCXStore(Store[UCXStoreKey]):
     async def close_endpoints(self):
         for ep in self.connections.values():
             await ep.close()
+        self.connections = {}
 
     def close(self) -> None:
         """Terminate Peer server process."""
