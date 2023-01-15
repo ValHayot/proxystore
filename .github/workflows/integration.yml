@@ -57,6 +57,10 @@ jobs:
           sudo make -j4
           sudo make install
           
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 20
+
       - name: run tests
         run: |
             python -m pip install -r requirements-dev.txt
@@ -66,10 +70,6 @@ jobs:
             python -m pip install git+https://github.com/rapidsai/ucx-py.git
             python -m pytest -k "[ucx_store]" --log-cli-level debug tests/store/store_basics_test.py
             #python -m pytest ucx_test.py
-
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 20
             
 
 #         uses: addnab/docker-run-action@v3
