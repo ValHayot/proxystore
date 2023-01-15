@@ -30,6 +30,7 @@ ENCODING = 'UTF-8'
 
 server_process = None
 logger = logging.getLogger(__name__)
+connections: dict[str, ucp.Endpoint] | None = None
 
 
 class UCXStoreKey(NamedTuple):
@@ -49,8 +50,6 @@ class UCXStore(Store[UCXStoreKey]):
     addr: str
     host: str
     port: int
-    connections: dict[str, ucp.Endpoint] | None
-    server: Process
     _loop: asyncio.events.AbstractEventLoop
 
     # TODO : make host optional and try to get infiniband path automatically
@@ -81,6 +80,7 @@ class UCXStore(Store[UCXStoreKey]):
             stats (bool): collect stats on store operations (default: False).
         """
         global server_process
+        global connections
 
         if ucx_import_error is not None:  # pragma: no cover
             raise ucx_import_error
@@ -108,7 +108,7 @@ class UCXStore(Store[UCXStoreKey]):
             )
 
         if persist_connections:
-            self.connections = {}
+            connections = {}
             
         # TODO: Verify if create_endpoint error handling will successfully
         # connect to endpoint or if error handling needs to be done here
@@ -171,36 +171,43 @@ class UCXStore(Store[UCXStoreKey]):
         self._loop.run_until_complete(self.handler(event, self.addr))
 
     async def handler(self, event: bytes, addr: str) -> bytes:
-        if self.connections is None or addr not in self.connections:
-            host = addr.split(':')[0]  # quick fix
-            port = int(addr.split(':')[1])
+        global connections
+        
+        host = addr.split(':')[0]  # quick fix
+        port = int(addr.split(':')[1])
+        if connections is None or addr not in connections:
             ep = await ucp.create_endpoint(host, port)
 
-            if self.connections is not None:
-                self.connections[addr] = ep
+            if connections is not None:
+                connections[addr] = ep
         else:
-            ep = self.connections[addr]
+            ep = connections[addr]
 
         await ep.send_obj(event)
 
         res = await ep.recv_obj()
 
-        if self.connections is None:
+        if connections is None:
             await ep.close()
 
         return bytes(res)  # returns bytearray by default
     
     async def close_endpoints(self):
-        for ep in self.connections.values():
+        global connections
+        
+        for ep in connections.values():
+            # Do a ping to exit the endpoint on server side
+            await ep.send_obj(bytes(1))
+            await ep.recv_obj()
             await ep.close()
-        self.connections = {}
+        connections.clear()
 
     def close(self) -> None:
         """Terminate Peer server process."""
         global server_process
+        global connections
 
         logger.info('Clean up requested')
-        
         self._loop.run_until_complete(self.close_endpoints())
 
         if server_process is not None:
@@ -292,38 +299,37 @@ class UCXServer:
             ep (ucp.Endpoint): the endpoint to communicate with.
 
         """
-        json_kv = await ep.recv_obj()
-        logger.error(f"is waiting for server response {json_kv == bytes(1)}")
-        if json_kv == bytes(1):
-            await ep.send_obj(bytes(1))
-            logger.error("waiting for server object sent")
-            return
+        while not self.ucp_listener.closed():
+            json_kv = await ep.recv_obj()
+            if json_kv == bytes(1):
+                await ep.send_obj(bytes(1))
+                return
 
-        kv = deserialize(bytes(json_kv))
+            kv = deserialize(bytes(json_kv))
 
-        key = kv['key']
-        data = kv['data']
-        func = kv['op']
+            key = kv['key']
+            data = kv['data']
+            func = kv['op']
 
-        if func == 'set':
-            res = self.set(key, data)
-        else:
-            if func == 'get':
-                func = self.get
-            elif func == 'exists':
-                func = self.exists
-            elif func == 'evict':
-                func = self.evict
+            if func == 'set':
+                res = self.set(key, data)
             else:
-                raise AssertionError('Unreachable.')
-            res = func(key)
+                if func == 'get':
+                    func = self.get
+                elif func == 'exists':
+                    func = self.exists
+                elif func == 'evict':
+                    func = self.evict
+                else:
+                    raise AssertionError('Unreachable.')
+                res = func(key)
 
-        if isinstance(res, Status) or isinstance(res, bool):
-            serialized_res = serialize(res)
-        else:
-            serialized_res = res
+            if isinstance(res, Status) or isinstance(res, bool):
+                serialized_res = serialize(res)
+            else:
+                serialized_res = res
 
-        await ep.send_obj(serialized_res)
+            await ep.send_obj(serialized_res)
 
     async def run(self) -> None:
         """Run this UCXServer forever.
