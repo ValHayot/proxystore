@@ -56,10 +56,6 @@ jobs:
           sudo ../configure
           sudo make -j4
           sudo make install
-          
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 20
 
       - name: run tests
         run: |
