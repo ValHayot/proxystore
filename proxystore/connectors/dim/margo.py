@@ -1,11 +1,13 @@
 """Margo RPC-based distributed in-memory connector implementation."""
 from __future__ import annotations
 
+import atexit
+import multiprocessing
 import logging
 import sys
+import time
 import uuid
 from enum import Enum
-from multiprocessing import Process
 from os import getpid
 from types import TracebackType
 from typing import Any
@@ -32,12 +34,18 @@ except ImportError as e:  # pragma: no cover
     pymargo_import_error = e
 
 
+import proxystore.utils as utils
+from proxystore.connectors.dim.exceptions import ServerTimeoutError
 from proxystore.connectors.dim.utils import get_ip_address
-from proxystore.connectors.dim.utils import Status
+from proxystore.connectors.dim.models import DIMKey
+from proxystore.connectors.dim.models import RPC
+from proxystore.connectors.dim.models import RPCResponse
 from proxystore.serialize import deserialize
 from proxystore.serialize import serialize
 
-server_process: Process | None = None
+
+# TODO: remove
+server_process: multiprocessing.Process | None = None
 client_pids: set[int] = set()
 logger = logging.getLogger(__name__)
 engine: Engine | None = None
@@ -61,17 +69,6 @@ class Protocol(Enum):
     """Shared memory shm"""
     BMI_TCP = 'bmi+tcp'
     """BMI tcp module (TCP/IP)"""
-
-
-class MargoKey(NamedTuple):
-    """Key to objects stored across `MargoConnector`s."""
-
-    margo_key: str
-    """Unique object key."""
-    obj_size: int
-    """Object size in bytes."""
-    peer: str
-    """Peer where object is located."""
 
 
 class MargoConnector:
@@ -123,10 +120,6 @@ class MargoConnector:
 
         self.addr = f'{self.protocol}://{self.host}:{port}'
 
-        if server_process is None:
-            server_process = Process(target=self._start_server)
-            server_process.start()
-
         if engine is None:
             # start client
             engine = Engine(
@@ -145,10 +138,36 @@ class MargoConnector:
         self.engine = engine
         self._rpcs = _rpcs
 
-        self.server_started()
-
+        # TODO: do we keep?
         self._pid = getpid()
         client_pids.add(self._pid)
+
+        self.server: multiprocessing.Process | None
+
+        try:
+            logger.info(
+                f'Connecting to local server (address={self.addr})...',
+            )
+            wait_for_server(self.engine, self.protocol, self.host, self.port, self.timeout)
+            logger.info(
+                f'Connected to local server (address={self.addr})',
+            )
+        except AssertionError:
+            logger.info(
+                'Failed to connect to local server '
+                f'(address={self.addr}, timeout={self.timeout})',
+            )
+            self.server = spawn_server(
+                self.protocol,
+                self.host,
+                self.port,
+                chunk_length=self.chunk_length,
+                spawn_timeout=self.timeout,
+            )
+            logger.info(f'Spawned local server (address={self.addr})')
+        else:
+            self.server = None
+
 
     def __enter__(self) -> Self:
         return self
@@ -161,61 +180,46 @@ class MargoConnector:
     ) -> None:
         self.close()
 
-    def _start_server(self) -> None:
-        """Launch the local Margo server (Peer) process."""
-        logger.info(f'starting server {self.addr}')
-        server_engine = Engine(self.addr)
+    def _send_rpcs(self, rpcs: Sequence[RPC]) -> list[RPCResponse]:
+        """Send an RPC request to the server.
 
-        logger.info(f'Server running at address {str(server_engine.addr())}')
-
-        server_engine.on_finalize(when_finalize)
-        server_engine.enable_remote_shutdown()
-
-        # create server
-        receiver = MargoServer(server_engine)
-        server_engine.register('get', receiver.get)
-        server_engine.register('set', receiver.set)
-        server_engine.register('exists', receiver.exists)
-        server_engine.register('evict', receiver.evict)
-        server_engine.wait_for_finalize()
-
-    def server_started(self) -> None:  # pragma: no cover
-        """Loop until server has started."""
-        logger.debug('Checking if server has started')
-        while True:
-            assert engine is not None
-            try:
-                self._mochi_addr = engine.lookup(self.addr)
-                break
-            except MargoException:
-                pass
-
-    @staticmethod
-    def call_rpc_on(
-        engine: Engine,
-        addr: str,
-        rpc: RemoteFunction,
-        array_str: Bulk,
-        key: str,
-        size: int,
-    ) -> Status:
-        """Initiate the desired RPC call on the specified provider.
-
-        Arguments:
-            engine: The client-side engine.
-            addr: The address of Margo provider to access
-                (e.g. tcp://172.21.2.203:6367).
-            rpc: The rpc to issue to the server.
-            array_str: The serialized data/buffer to send to the server.
-            key: The identifier of the data stored on the server.
-            size: The size of the the data.
+        Args:
+            rpcs: List of RPCs to invoke on local server.
 
         Returns:
-            A string denoting whether the communication was successful
-        """
-        server_addr = engine.lookup(addr)
-        return deserialize(rpc.on(server_addr)(array_str, size, key))
+            List of RPC responses.
 
+        Raises:
+            Exception: Any exception returned by the local server.
+        """
+        responses = []
+
+        for rpc in rpcs:
+            addr = f'{self.protocol}://{rpc.key.peer_host}:{rpc.key.peer_port}'
+            server_addr = self.engine.lookup(addr)
+            logger.debug(
+                f'Sent {rpc.operation.upper()} RPC (key={rpc.key})',
+            )
+            result = self._rpcs[rpc.operation].on(server_addr)(rpc.data, rpc.key.size, rpc.key)
+
+            response = deserialize(result)
+            logger.debug(
+                f'Received {rpc.operation.upper()} RPC response '
+                f'(key={response.key}, '
+                f'exception={response.exception is not None})',
+            )
+
+            if response.exception is not None:
+                raise response.exception
+
+            assert rpc.operation == response.operation
+            assert rpc.key == response.key
+
+            responses.append(response)
+
+        return responses
+
+    # TODO: fix
     def close(self) -> None:
         """Close the connector and clean up.
 
@@ -533,3 +537,105 @@ class MargoServer:
 def when_finalize() -> None:
     """Print a statement advising that engine finalization was triggered."""
     logger.info('Finalize was called. Cleaning up.')
+
+
+def start_server(protocol: Protocol, host: str, port: int) -> None:
+    """Launch the local Margo server (Peer) process.
+    
+    Args:
+    
+    """
+    addr = f'{protocol}://{host}:{port}'
+    server_engine = Engine(addr)
+    server_engine.on_finalize(when_finalize)
+    server_engine.enable_remote_shutdown()
+
+    # create server
+    receiver = MargoServer(server_engine)
+    server_engine.register('get', receiver.get)
+    server_engine.register('set', receiver.set)
+    server_engine.register('exists', receiver.exists)
+    server_engine.register('evict', receiver.evict)
+    server_engine.wait_for_finalize()
+
+
+def spawn_server(
+    protocol: Protocol,
+    host: str,
+    port: int,
+    *,
+    spawn_timeout: float = 5.0,
+    kill_timeout: float | None = 1.0,
+) -> multiprocessing.Process:
+    """Spawn a local server running in a separate process.
+
+    Note:
+        An `atexit` callback is registered which will terminate the spawned
+        server process when the calling process exits.
+
+    Args:
+        protocol (enum): The margo network protocol to use for communication.
+        host: The host of the server to ping.
+        port: The port of the server to ping.
+        spawn_timeout: Max time in seconds to wait for the server to start.
+        kill_timeout: Max time in seconds to wait for the server to shutdown
+            on exit.
+
+    Returns:
+        The process that the server is running in.
+    """
+    server_process = multiprocessing.Process(
+        target=start_server,
+        args=(protocol, host, port),
+    )
+    server_process.start()
+
+    def _kill_on_exit() -> None:  # pragma: no cover
+        server_process.terminate()
+        server_process.join(timeout=kill_timeout)
+        if server_process.is_alive():
+            server_process.kill()
+            server_process.join()
+        logger.debug(
+            'Server terminated on parent process exit '
+            f'(pid={server_process.pid})',
+        )
+
+    atexit.register(_kill_on_exit)
+    logger.debug('Registered server cleanup atexit callback')
+
+    wait_for_server(protocol, host, port, timeout=spawn_timeout)
+    logger.debug(
+        f'Server started (host={host}, port={port}, pid={server_process.pid})',
+    )
+
+    return server_process
+
+
+#TODO: removed the timeout here. Should verify that it'll work without it
+def wait_for_server(engine: pymargo.core.Engine, protocol: Protocol, host: str, port: int, timeout: float = 0.1) -> None:
+    """Wait until the server responds.
+
+    Args:
+        engine: The Margo client engine to use to connect to server.
+        protocol (enum): The Margo network protocol to use for communication.
+        host: The host of the server to ping.
+        port: The port of the server to ping.
+
+    Raises:
+        ServerTimeoutError: If the server does not respond within the timeout.
+    """
+    start = time.time()
+    addr = f"{protocol}://{host}:{port}"
+
+    while time.time() - start < timeout:
+        assert engine is not None
+        try:
+            engine.lookup(addr)
+            break
+        except MargoException:
+            continue
+
+    raise ServerTimeoutError(
+        f'Failed to connect to server within timeout ({timeout} seconds).',
+    )
